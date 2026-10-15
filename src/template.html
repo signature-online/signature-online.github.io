@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{{head}}
+<style>
+  :root {
+    --bg: #f4f3ef;
+    --surface: #ffffff;
+    --text: #1d1d1f;
+    --muted: #6b6b70;
+    --border: #dcdad3;
+    --accent: #1a3d9e;
+    --accent-text: #ffffff;
+    --pad: #fffdf8;
+    --pad-line: #c9c4b6;
+    --pad-hint: #b4ae9f;
+    --focus: #4c7dff;
+    --danger: #b3261e;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17171a;
+      --surface: #222226;
+      --text: #ececef;
+      --muted: #a0a0a8;
+      --border: #3a3a40;
+      --accent: #7b9cff;
+      --accent-text: #0e1430;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17171a;
+    --surface: #222226;
+    --text: #ececef;
+    --muted: #a0a0a8;
+    --border: #3a3a40;
+    --accent: #7b9cff;
+    --accent-text: #0e1430;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  main { width: 100%; max-width: 880px; }
+  h1 { font-size: 22px; font-weight: 650; margin: 0 0 4px; letter-spacing: -.01em; }
+  .lead { color: var(--muted); margin: 0 0 20px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  /* Пэд всегда «бумажный», чтобы чёрные/синие чернила были видны в любой теме */
+  .pad {
+    position: relative;
+    background: var(--pad);
+    height: clamp(200px, 38vw, 320px);
+    border-bottom: 1px solid var(--border);
+  }
+  .pad canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    touch-action: none;
+    cursor: crosshair;
+    display: block;
+  }
+  .pad .baseline {
+    position: absolute; left: 6%; right: 6%; bottom: 26%;
+    border-bottom: 1.5px dashed var(--pad-line);
+    pointer-events: none;
+  }
+  .pad .baseline::before {
+    content: "×";
+    position: absolute; left: -2px; bottom: 2px;
+    color: var(--pad-line); font-size: 22px; line-height: 1;
+  }
+  .pad .hint {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    color: var(--pad-hint); font-size: 17px;
+    pointer-events: none;
+    transition: opacity .2s;
+  }
+  .pad.has-ink .hint { opacity: 0; }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 12px 20px;
+    padding: 14px 16px;
+  }
+  .group { display: flex; align-items: center; gap: 8px; }
+  .group-label { color: var(--muted); font-size: 13px; }
+  .export { margin-left: auto; }
+
+  .swatch {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid var(--surface);
+    outline: 2px solid transparent;
+    cursor: pointer; padding: 0;
+    box-shadow: 0 0 0 1px var(--border);
+  }
+  .swatch[aria-pressed="true"] { outline-color: var(--accent); }
+  .swatch.custom {
+    position: relative; overflow: hidden;
+    background: conic-gradient(#e33, #ec3, #3c5, #3ae, #63e, #e3a, #e33);
+  }
+  .swatch.custom input {
+    position: absolute; inset: -8px; width: 44px; height: 44px;
+    opacity: 0; cursor: pointer; border: 0; padding: 0;
+  }
+
+  input[type="range"] { width: 110px; accent-color: var(--accent); }
+  .width-value { font-variant-numeric: tabular-nums; min-width: 2ch; color: var(--muted); font-size: 13px; }
+
+  button.btn {
+    font: inherit; font-size: 14px;
+    border-radius: 9px;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  button.btn:hover:not(:disabled) { border-color: var(--muted); }
+  button.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  button.btn:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .note { color: var(--muted); font-size: 13px; margin: 14px 2px 0; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px;
+    transform: translate(-50%, 20px);
+    background: var(--text); color: var(--bg);
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 14px; opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    max-width: calc(100vw - 32px);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.error { background: var(--danger); color: #fff; }
+
+  .top { display: flex; align-items: center; justify-content: space-between; margin: 0 0 18px; }
+  .brand { font-weight: 650; display: inline-flex; align-items: center; gap: 8px; }
+  .brand::before {
+    content: ""; width: 22px; height: 22px;
+    background: url("{{assetBase}}favicon.svg") center / contain no-repeat;
+  }
+  a { color: var(--accent); }
+  .lang-switch {
+    font-size: 14px; text-decoration: none;
+    border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
+  }
+  .lang-switch:hover { border-color: var(--muted); }
+  .lang-hint {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px; margin: 0 0 16px; font-size: 14px;
+  }
+  .lang-hint[hidden] { display: none; }
+  .lang-hint button {
+    margin-left: auto; font: inherit; font-size: 18px; line-height: 1;
+    background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 6px;
+  }
+  h1 { font-size: clamp(22px, 4vw, 30px); }
+  .badges { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: -6px 0 20px; }
+  .badges li {
+    font-size: 13px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 999px; padding: 4px 10px;
+  }
+  .badges li::before { content: "✓ "; color: var(--accent); font-weight: 700; }
+
+  .content { margin-top: 44px; }
+  .content section { margin: 0 0 36px; }
+  .content h2 { font-size: 19px; font-weight: 650; margin: 0 0 14px; letter-spacing: -.01em; }
+  .content h3 { font-size: 15px; font-weight: 650; margin: 0 0 4px; }
+  .content p { margin: 0; color: var(--muted); }
+  .steps { list-style: none; counter-reset: step; padding: 0; margin: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .steps li, .uses li {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .steps li { counter-increment: step; }
+  .steps h3::before { content: counter(step) ". "; color: var(--accent); }
+  .uses { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+  .faq details { border-bottom: 1px solid var(--border); padding: 12px 2px; }
+  .faq details:first-of-type { border-top: 1px solid var(--border); }
+  .faq summary { cursor: pointer; font-weight: 600; list-style-position: inside; }
+  .faq details p { margin-top: 8px; }
+  .foot {
+    display: flex; flex-wrap: wrap; gap: 8px 18px;
+    color: var(--muted); font-size: 13px;
+    border-top: 1px solid var(--border); padding-top: 16px; margin-top: 8px;
+  }
+  .foot span { margin-right: auto; }
+
+  @media (max-width: 600px) {
+    body { padding: 20px 16px; }
+    .export { width: 100%; }
+    .export .btn { flex: 1 1 0; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <span class="brand">{{appName}}</span>
+    <a class="lang-switch" href="{{otherUrl}}" hreflang="{{otherLang}}" lang="{{otherLang}}">{{langSwitch}}</a>
+  </header>
+  <div class="lang-hint" id="langHint" hidden lang="{{otherLang}}">
+    <span>{{otherLangHint}}</span>
+    <a href="{{otherUrl}}" hreflang="{{otherLang}}">{{otherLangHintGo}} →</a>
+    <button type="button" id="langHintClose" aria-label="{{otherLangHintClose}}">×</button>
+  </div>
+  <h1>{{h1}}</h1>
+  <p class="lead">{{lead}}</p>
+  <ul class="badges">{{badges}}</ul>
+
+  <section class="card">
+    <div class="pad" id="pad">
+      <div class="baseline"></div>
+      <div class="hint">{{padHint}}</div>
+      <canvas id="canvas" aria-label="{{canvasLabel}}"></canvas>
+    </div>
+
+    <div class="toolbar">
+      <div class="group" role="group" aria-label="{{colorLabel}}">
+        <span class="group-label">{{colorLabel}}</span>
+        <button class="swatch" data-color="#111111" style="background:#111111" aria-label="{{black}}" aria-pressed="true"></button>
+        <button class="swatch" data-color="#1a3d9e" style="background:#1a3d9e" aria-label="{{blue}}" aria-pressed="false"></button>
+        <label class="swatch custom" aria-label="{{customColor}}" aria-pressed="false" id="customSwatch">
+          <input type="color" id="customColor" value="#7a1f5c">
+        </label>
+      </div>
+
+      <div class="group">
+        <label class="group-label" for="width">{{widthLabel}}</label>
+        <input type="range" id="width" min="1" max="10" step="0.5" value="3">
+        <span class="width-value" id="widthValue">3</span>
+      </div>
+
+      <div class="group">
+        <button class="btn" id="undo" disabled title="{{undoTitle}}">{{undo}}</button>
+        <button class="btn" id="clear" disabled>{{clear}}</button>
+      </div>
+
+      <div class="group export">
+        <button class="btn" id="copy" disabled>{{copy}}</button>
+        <button class="btn" id="savePng" disabled>PNG</button>
+        <button class="btn primary" id="savePdf" disabled>PDF</button>
+      </div>
+    </div>
+  </section>
+
+  <p class="note">{{privacyNote}}</p>
+
+  {{content}}
+
+  <footer class="foot">
+    <span>{{footer}}</span>
+    <a href="{{otherUrl}}" hreflang="{{otherLang}}" lang="{{otherLang}}">{{langSwitch}}</a>
+    <a href="{{repoUrl}}" rel="noopener">{{sourceLink}}</a>
+  </footer>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const T = {{jsStrings}};
+  const track = (name) => { try { window.goatcounter && window.goatcounter.count({ path: name, title: name, event: true }); } catch {} };
+
+  const PNG_SCALE = 3;        // px экспорта на 1 css-px
+  const PT_PER_PX = 0.75;     // 96 dpi → 72 pt
+  const EXPORT_MARGIN = 6;    // css-px вокруг подписи
+
+  const pad = document.getElementById('pad');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const ui = {
+    swatches: [...document.querySelectorAll('.swatch')],
+    customColor: document.getElementById('customColor'),
+    width: document.getElementById('width'),
+    widthValue: document.getElementById('widthValue'),
+    undo: document.getElementById('undo'),
+    clear: document.getElementById('clear'),
+    copy: document.getElementById('copy'),
+    savePng: document.getElementById('savePng'),
+    savePdf: document.getElementById('savePdf'),
+    toast: document.getElementById('toast'),
+  };
+
+  /** @type {{color:string, width:number, points:{x:number,y:number}[]}[]} */
+  const strokes = [];
+  let current = null;
+  let view = 1; // масштаб отображения: вписывает подпись в холст после сужения окна
+  let pen = { color: '#111111', width: 3 };
+
+  // ---------- Геометрия ----------
+
+  // Сглаживание по средним точкам: M, затем Q(точка → середина следующего отрезка), в конце L.
+  function pathSegments(points) {
+    const segs = [{ t: 'M', x: points[0].x, y: points[0].y }];
+    if (points.length === 1) return segs;
+    if (points.length === 2) {
+      segs.push({ t: 'L', x: points[1].x, y: points[1].y });
+      return segs;
+    }
+    for (let i = 1; i < points.length - 1; i++) {
+      const p = points[i], n = points[i + 1];
+      segs.push({ t: 'Q', cx: p.x, cy: p.y, x: (p.x + n.x) / 2, y: (p.y + n.y) / 2 });
+    }
+    const last = points[points.length - 1];
+    segs.push({ t: 'L', x: last.x, y: last.y });
+    return segs;
+  }
+
+  function bounds() {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const s of strokes) {
+      const r = s.width / 2;
+      for (const p of s.points) {
+        minX = Math.min(minX, p.x - r); minY = Math.min(minY, p.y - r);
+        maxX = Math.max(maxX, p.x + r); maxY = Math.max(maxY, p.y + r);
+      }
+    }
+    minX -= EXPORT_MARGIN; minY -= EXPORT_MARGIN;
+    maxX += EXPORT_MARGIN; maxY += EXPORT_MARGIN;
+    return { minX, minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  // ---------- Рендер ----------
+
+  function drawStroke(c, s) {
+    c.strokeStyle = s.color;
+    c.fillStyle = s.color;
+    c.lineWidth = s.width;
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    if (s.points.length === 1) {
+      const p = s.points[0];
+      c.beginPath();
+      c.arc(p.x, p.y, s.width / 2, 0, Math.PI * 2);
+      c.fill();
+      return;
+    }
+    c.beginPath();
+    for (const g of pathSegments(s.points)) {
+      if (g.t === 'M') c.moveTo(g.x, g.y);
+      else if (g.t === 'L') c.lineTo(g.x, g.y);
+      else c.quadraticCurveTo(g.cx, g.cy, g.x, g.y);
+    }
+    c.stroke();
+  }
+
+  let frame = 0;
+  function requestRedraw() {
+    if (!frame) frame = requestAnimationFrame(redraw);
+  }
+  function redraw() {
+    frame = 0;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(dpr * view, 0, 0, dpr * view, 0, 0);
+    for (const s of strokes) drawStroke(ctx, s);
+  }
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const r = canvas.getBoundingClientRect();
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    view = fitScale(r.width, r.height);
+    redraw();
+  }
+  // Масштаб ≤ 1, при котором все штрихи помещаются в холст w×h.
+  function fitScale(w, h) {
+    let maxX = 0, maxY = 0;
+    for (const s of strokes) {
+      for (const p of s.points) {
+        maxX = Math.max(maxX, p.x + s.width / 2 + EXPORT_MARGIN);
+        maxY = Math.max(maxY, p.y + s.width / 2 + EXPORT_MARGIN);
+      }
+    }
+    return Math.min(1, maxX ? w / maxX : 1, maxY ? h / maxY : 1);
+  }
+  new ResizeObserver(resize).observe(pad);
+
+  // ---------- Ввод ----------
+
+  function pointFrom(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / view, y: (e.clientY - r.top) / view };
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    current = { color: pen.color, width: pen.width, points: [pointFrom(e)] };
+    strokes.push(current);
+    requestRedraw();
+    syncUi();
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!current) return;
+    const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ev of events.length ? events : [e]) {
+      const p = pointFrom(ev);
+      const last = current.points[current.points.length - 1];
+      if (Math.hypot(p.x - last.x, p.y - last.y) * view >= 0.75) current.points.push(p);
+    }
+    requestRedraw();
+  });
+
+  function endStroke() { current = null; }
+  canvas.addEventListener('pointerup', endStroke);
+  canvas.addEventListener('pointercancel', endStroke);
+
+  // ---------- Тулбар ----------
+
+  function selectSwatch(el, color) {
+    pen.color = color;
+    for (const s of ui.swatches) s.setAttribute('aria-pressed', String(s === el));
+  }
+  for (const s of ui.swatches) {
+    if (s.dataset.color) s.addEventListener('click', () => selectSwatch(s, s.dataset.color));
+  }
+  const customSwatch = document.getElementById('customSwatch');
+  ui.customColor.addEventListener('input', () => selectSwatch(customSwatch, ui.customColor.value));
+  ui.customColor.addEventListener('click', () => selectSwatch(customSwatch, ui.customColor.value));
+
+  ui.width.addEventListener('input', () => {
+    pen.width = Number(ui.width.value);
+    ui.widthValue.textContent = ui.width.value;
+  });
+
+  function undo() {
+    if (current || !strokes.length) return;
+    strokes.pop();
+    requestRedraw();
+    syncUi();
+  }
+  ui.undo.addEventListener('click', undo);
+  ui.clear.addEventListener('click', () => {
+    strokes.length = 0;
+    current = null;
+    view = 1;
+    requestRedraw();
+    syncUi();
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      undo();
+    }
+  });
+
+  function syncUi() {
+    const empty = strokes.length === 0;
+    for (const b of [ui.undo, ui.clear, ui.copy, ui.savePng, ui.savePdf]) b.disabled = empty;
+    pad.classList.toggle('has-ink', !empty);
+  }
+
+  let toastTimer = 0;
+  function toast(msg, isError = false) {
+    ui.toast.textContent = msg;
+    ui.toast.classList.toggle('error', isError);
+    ui.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2600);
+  }
+
+  function download(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ---------- PNG ----------
+
+  function renderPng() {
+    const b = bounds();
+    const out = document.createElement('canvas');
+    out.width = Math.ceil(b.w * PNG_SCALE);
+    out.height = Math.ceil(b.h * PNG_SCALE);
+    const c = out.getContext('2d');
+    c.scale(PNG_SCALE, PNG_SCALE);
+    c.translate(-b.minX, -b.minY);
+    for (const s of strokes) drawStroke(c, s);
+    return new Promise((resolve, reject) =>
+      out.toBlob((blob) => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png'));
+  }
+
+  ui.savePng.addEventListener('click', async () => {
+    try {
+      download(await renderPng(), 'signature.png');
+      toast(T.pngSaved);
+      track('download-png');
+    } catch (err) {
+      toast(T.pngFail + err.message, true);
+    }
+  });
+
+  ui.copy.addEventListener('click', async () => {
+    try {
+      if (!navigator.clipboard || !window.ClipboardItem) throw new Error(T.copyUnsupported);
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': renderPng() })]);
+      toast(T.copied);
+      track('copy');
+    } catch (err) {
+      toast(T.copyFail + err.message + T.usePng, true);
+    }
+  });
+
+  // ---------- PDF (векторный, без фона) ----------
+
+  const num = (v) => (Math.round(v * 100) / 100).toString();
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => num(v / 255));
+  }
+
+  function buildPdf() {
+    const b = bounds();
+    const W = b.w * PT_PER_PX, H = b.h * PT_PER_PX;
+    const X = (x) => num((x - b.minX) * PT_PER_PX);
+    const Y = (y) => num((b.minY + b.h - y) * PT_PER_PX);
+
+    const ops = ['1 J 1 j'];
+    for (const s of strokes) {
+      const [r, g, bl] = hexToRgb(s.color);
+      ops.push(`${r} ${g} ${bl} RG ${num(s.width * PT_PER_PX)} w`);
+      const pts = s.points;
+      if (pts.length === 1) {
+        // отрезок нулевой длины с круглым концом = точка
+        ops.push(`${X(pts[0].x)} ${Y(pts[0].y)} m ${X(pts[0].x)} ${Y(pts[0].y)} l S`);
+        continue;
+      }
+      let px = 0, py = 0;
+      const path = [];
+      for (const sg of pathSegments(pts)) {
+        if (sg.t === 'M') path.push(`${X(sg.x)} ${Y(sg.y)} m`);
+        else if (sg.t === 'L') path.push(`${X(sg.x)} ${Y(sg.y)} l`);
+        else {
+          // quadratic → cubic
+          const c1x = px + (2 / 3) * (sg.cx - px), c1y = py + (2 / 3) * (sg.cy - py);
+          const c2x = sg.x + (2 / 3) * (sg.cx - sg.x), c2y = sg.y + (2 / 3) * (sg.cy - sg.y);
+          path.push(`${X(c1x)} ${Y(c1y)} ${X(c2x)} ${Y(c2y)} ${X(sg.x)} ${Y(sg.y)} c`);
+        }
+        px = sg.x; py = sg.y;
+      }
+      ops.push(path.join('\n') + ' S');
+    }
+    const content = ops.join('\n');
+
+    const objects = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(W)} ${num(H)}] /Resources << >> /Contents 4 0 R >>`,
+      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    ];
+    // Всё содержимое — ASCII, поэтому длина строки = длина в байтах.
+    let pdf = '%PDF-1.4\n';
+    const offsets = [];
+    objects.forEach((body, i) => {
+      offsets.push(pdf.length);
+      pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
+    });
+    const xrefAt = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    for (const o of offsets) pdf += `${String(o).padStart(10, '0')} 00000 n \n`;
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`;
+    return new Blob([pdf], { type: 'application/pdf' });
+  }
+
+  ui.savePdf.addEventListener('click', () => {
+    try {
+      download(buildPdf(), 'signature.pdf');
+      toast(T.pdfSaved);
+      track('download-pdf');
+    } catch (err) {
+      toast(T.pdfFail + err.message, true);
+    }
+  });
+
+  // ---------- Подсказка о другой языковой версии ----------
+
+  (function langHint() {
+    const el = document.getElementById('langHint');
+    const KEY = 'langHintDismissed';
+    try { if (localStorage.getItem(KEY)) return; } catch {}
+    const prefs = (navigator.languages || [navigator.language || '']).map((l) => l.toLowerCase().slice(0, 2));
+    // На русской странице подсказываем английскую всем, у кого русский не основной язык;
+    // на английской — только тем, у кого русский есть в списке языков браузера.
+    if (prefs[0] === '{{lang}}' || ('{{otherLang}}' !== 'en' && !prefs.includes('{{otherLang}}'))) return;
+    el.hidden = false;
+    document.getElementById('langHintClose').addEventListener('click', () => {
+      el.hidden = true;
+      try { localStorage.setItem(KEY, '1'); } catch {}
+    });
+  })();
+
+  syncUi();
+})();
+</script>
+{{analytics}}
+</body>
+</html>

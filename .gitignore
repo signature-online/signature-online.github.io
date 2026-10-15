@@ -1,0 +1,7 @@
+# Личные данные и внутренние заметки — не публикуются
+signature-tim/
+docs/
+*.pdf
+dist/
+.DS_Store
+.playwright-mcp/
